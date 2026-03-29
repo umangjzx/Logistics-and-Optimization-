@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>India Logistics Optimizer — Interactive Dashboard</title>
+  <meta name="description"
+    content="100-city delivery optimization dashboard with real-time analytics for 3 agents across India">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <script src="dashboard_data.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
+
+    :root {
+      --bg: #0a0e1a;
+      --surface: #111827;
+      --surface2: #1a2235;
+      --border: #1e2d45;
+      --a1: #00d4ff;
+      --a2: #a855f7;
+      --a3: #f59e0b;
+      --high: #ff4757;
+      --med: #ffd700;
+      --low: #00ff88;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --mono: 'JetBrains Mono', monospace
+    }
+
+    [data-theme="light"] {
+      --bg: #f0f4f8;
+      --surface: #ffffff;
+      --surface2: #e8eef4;
+      --border: #d1d9e6;
+      --text: #1a202c;
+      --muted: #718096
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Grotesk', sans-serif;
+      min-height: 100vh;
+      transition: background .4s, color .4s
+    }
+
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, #0a0e1a 0%, #0d1b33 50%, #0a0e1a 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 2rem 2.5rem 1.5rem;
+      position: relative;
+      overflow: hidden
+    }
+
+    [data-theme="light"] .hero {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 60% 100% at 80% 50%, rgba(0, 212, 255, .08), transparent 70%), radial-gradient(ellipse 40% 80% at 20% 50%, rgba(168, 85, 247, .06), transparent 70%);
+      pointer-events: none
+    }
+
+    .hero-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      position: relative;
+      z-index: 1
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: .75rem
+    }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #00d4ff22, #a855f722);
+      border: 1px solid #00d4ff33;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      animation: pulse 3s ease-in-out infinite
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(0, 212, 255, .3)
+      }
+
+      50% {
+        box-shadow: 0 0 20px 4px rgba(0, 212, 255, .15)
+      }
+    }
+
+    .logo h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -.02em
+    }
+
+    [data-theme="light"] .logo h1 {
+      color: #fff
+    }
+
+    .logo p {
+      font-size: .78rem;
+      color: var(--muted);
+      margin-top: .15rem
+    }
+
+    [data-theme="light"] .logo p {
+      color: rgba(255, 255, 255, .85)
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: .5rem;
+      align-items: center;
+      flex-wrap: wrap
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .4rem .9rem;
+      border-radius: 999px;
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      border: 1px solid;
+      font-family: var(--mono)
+    }
+
+    .badge-algo {
+      background: #00d4ff12;
+      border-color: #00d4ff33;
+      color: #00d4ff
+    }
+
+    [data-theme="light"] .badge-algo {
+      background: rgba(255, 255, 255, .2);
+      border-color: rgba(255, 255, 255, .4);
+      color: #fff
+    }
+
+    .theme-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .3s
+    }
+
+    .theme-btn:hover {
+      background: var(--surface2);
+      transform: scale(1.05)
+    }
+
+    [data-theme="light"] .theme-btn {
+      background: rgba(255, 255, 255, .2);
+      border-color: rgba(255, 255, 255, .3);
+      color: #fff
+    }
+
+    /* KPIs */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-top: 1.5rem;
+      position: relative;
+      z-index: 1
+    }
+
+    @media(max-width:900px) {
+      .kpi-row {
+        grid-template-columns: repeat(2, 1fr)
+      }
+    }
+
+    @media(max-width:500px) {
+      .kpi-row {
+        grid-template-columns: 1fr
+      }
+    }
+
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1rem 1.2rem;
+      transition: transform .2s, box-shadow .2s
+    }
+
+    .kpi:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, .2)
+    }
+
+    .kpi-label {
+      font-size: .72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-weight: 600
+    }
+
+    .kpi-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      font-family: var(--mono);
+      margin-top: .3rem;
+      line-height: 1
+    }
+
+    .kpi-sub {
+      font-size: .72rem;
+      color: var(--muted);
+      margin-top: .3rem
+    }
+
+    .kpi.accent1 {
+      border-color: #00d4ff33
+    }
+
+    .kpi.accent1 .kpi-value {
+      color: #00d4ff
+    }
+
+    .kpi.accent2 {
+      border-color: #a855f733
+    }
+
+    .kpi.accent2 .kpi-value {
+      color: #a855f7
+    }
+
+    .kpi.accent3 {
+      border-color: #f59e0b33
+    }
+
+    .kpi.accent3 .kpi-value {
+      color: #f59e0b
+    }
+
+    .kpi.accent4 {
+      border-color: #00ff8833
+    }
+
+    .kpi.accent4 .kpi-value {
+      color: #00ff88
+    }
+
+    /* Main Grid */
+    .main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      padding: 1.5rem 2.5rem
+    }
+
+    @media(max-width:900px) {
+      .main {
+        grid-template-columns: 1fr;
+        padding: 1rem
+      }
+    }
+
+    .full-row {
+      grid-column: 1/-1
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.25rem 1.5rem;
+      transition: box-shadow .3s
+    }
+
+    .card:hover {
+      box-shadow: 0 4px 20px rgba(0, 0, 0, .15)
+    }
+
+    .card-title {
+      font-size: .8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem
+    }
+
+    .card-title::before {
+      content: '';
+      width: 3px;
+      height: 16px;
+      border-radius: 2px;
+      background: linear-gradient(to bottom, #00d4ff, #a855f7)
+    }
+
+    /* Search */
+    .search-wrap {
+      position: relative;
+      margin-bottom: 1rem
+    }
+
+    .search-input {
+      width: 100%;
+      padding: .6rem 1rem .6rem 2.5rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-family: inherit;
+      font-size: .82rem;
+      transition: border-color .2s;
+      outline: none
+    }
+
+    .search-input:focus {
+      border-color: #00d4ff55
+    }
+
+    .search-icon {
+      position: absolute;
+      left: .8rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: .9rem;
+      color: var(--muted)
+    }
+
+    /* Agent tabs */
+    .agent-tabs {
+      display: flex;
+      gap: .5rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap
+    }
+
+    .tab {
+      padding: .45rem 1rem;
+      border-radius: 8px;
+      font-size: .8rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      transition: all .25s;
+      font-family: inherit
+    }
+
+    .tab.a1.active {
+      background: #00d4ff15;
+      border-color: #00d4ff55;
+      color: #00d4ff;
+      box-shadow: 0 0 15px rgba(0, 212, 255, .1)
+    }
+
+    .tab.a2.active {
+      background: #a855f715;
+      border-color: #a855f755;
+      color: #a855f7;
+      box-shadow: 0 0 15px rgba(168, 85, 247, .1)
+    }
+
+    .tab.a3.active {
+      background: #f59e0b15;
+      border-color: #f59e0b55;
+      color: #f59e0b;
+      box-shadow: 0 0 15px rgba(245, 158, 11, .1)
+    }
+
+    .tab:not(.active):hover {
+      background: var(--surface2);
+      color: var(--text)
+    }
+
+    /* Agent stats */
+    .agent-stat {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.2rem;
+      padding: .85rem 1rem;
+      border-radius: 10px;
+      background: var(--surface2)
+    }
+
+    .astat {
+      text-align: center;
+      min-width: 60px
+    }
+
+    .astat-val {
+      font-size: 1.1rem;
+      font-weight: 700;
+      font-family: var(--mono)
+    }
+
+    .astat-lbl {
+      font-size: .68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-top: .15rem
+    }
+
+    /* Progress bars */
+    .progress-wrap {
+      margin-bottom: .6rem
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: .75rem;
+      margin-bottom: .3rem
+    }
+
+    .progress-bar {
+      height: 6px;
+      border-radius: 3px;
+      background: var(--border);
+      overflow: hidden
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width .8s cubic-bezier(.34, 1.56, .64, 1)
+    }
+
+    /* Table */
+    .delivery-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .78rem
+    }
+
+    .delivery-table th {
+      text-align: left;
+      padding: .5rem .75rem;
+      font-size: .68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap
+    }
+
+    .delivery-table th:hover {
+      color: var(--text)
+    }
+
+    .delivery-table td {
+      padding: .55rem .75rem;
+      border-bottom: 1px solid #1a223522;
+      transition: background .15s
+    }
+
+    .delivery-table tr:hover td {
+      background: var(--surface2)
+    }
+
+    .pri-badge {
+      display: inline-block;
+      padding: .2rem .6rem;
+      border-radius: 5px;
+      font-size: .68rem;
+      font-weight: 700;
+      font-family: var(--mono);
+      letter-spacing: .04em
+    }
+
+    .pri-H {
+      background: #ff475715;
+      color: #ff4757;
+      border: 1px solid #ff475730
+    }
+
+    .pri-M {
+      background: #ffd70015;
+      color: #ffd700;
+      border: 1px solid #ffd70030
+    }
+
+    .pri-L {
+      background: #00ff8815;
+      color: #00ff88;
+      border: 1px solid #00ff8830
+    }
+
+    /* Balance bars */
+    .balance-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: .8rem
+    }
+
+    .balance-label {
+      font-size: .78rem;
+      font-weight: 600;
+      width: 70px;
+      font-family: var(--mono)
+    }
+
+    .balance-track {
+      flex: 1;
+      height: 30px;
+      background: var(--surface2);
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative
+    }
+
+    .balance-fill {
+      height: 100%;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      padding-left: .75rem;
+      font-size: .75rem;
+      font-weight: 700;
+      font-family: var(--mono);
+      transition: width 1s cubic-bezier(.34, 1.56, .64, 1)
+    }
+
+    .balance-pct {
+      font-size: .72rem;
+      color: var(--muted);
+      width: 42px;
+      text-align: right;
+      font-family: var(--mono)
+    }
+
+    /* Map */
+    .map-container {
+      position: relative;
+      width: 100%;
+      height: 420px;
+      border-radius: 8px;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .leaflet-popup-content-wrapper {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, .3);
+    }
+
+    .leaflet-popup-tip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    .leaflet-container {
+      font-family: inherit;
+      background: #0d1b33;
+    }
+
+    [data-theme="light"] .leaflet-container {
+      background: #e8eef4;
+    }
+    
+    .leaflet-popup-content {
+      margin: 10px 14px;
+      line-height: 1.5;
+    }
+
+    /* Scroll */
+    .scroll-wrap {
+      max-height: 360px;
+      overflow-y: auto
+    }
+
+    .scroll-wrap::-webkit-scrollbar {
+      width: 4px
+    }
+
+    .scroll-wrap::-webkit-scrollbar-track {
+      background: transparent
+    }
+
+    .scroll-wrap::-webkit-scrollbar-thumb {
+      background: #1e2d45;
+      border-radius: 2px
+    }
+
+    /* Chart */
+    .chart-wrap {
+      position: relative;
+      height: 240px;
+      width: 100%
+    }
+
+    /* Zone chips */
+    .zone-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin-top: .5rem
+    }
+
+    .zone-chip {
+      padding: .3rem .7rem;
+      border-radius: 6px;
+      font-size: .72rem;
+      font-weight: 600;
+      font-family: var(--mono);
+      background: var(--surface2);
+      border: 1px solid var(--border)
+    }
+
+    /* Comparison table */
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .82rem
+    }
+
+    .compare-table th,
+    .compare-table td {
+      padding: .7rem 1rem;
+      text-align: center;
+      border-bottom: 1px solid var(--border)
+    }
+
+    .compare-table th {
+      font-size: .7rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      font-weight: 600
+    }
+
+    .compare-table .rank-1 {
+      color: #00d4ff;
+      font-weight: 700
+    }
+
+    .compare-table .rank-2 {
+      color: #a855f7;
+      font-weight: 700
+    }
+
+    .compare-table .rank-3 {
+      color: #f59e0b;
+      font-weight: 700
+    }
+
+    /* Footer */
+    footer {
+      padding: 1.5rem 2.5rem 2rem;
+      text-align: center;
+      font-size: .72rem;
+      color: var(--muted)
+    }
+
+    footer a {
+      color: #00d4ff;
+      text-decoration: none
+    }
+
+    /* Animations */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    .animate-in {
+      animation: fadeUp .5s ease-out both
+    }
+
+    .delay-1 {
+      animation-delay: .1s
+    }
+
+    .delay-2 {
+      animation-delay: .2s
+    }
+
+    .delay-3 {
+      animation-delay: .3s
+    }
+
+    .delay-4 {
+      animation-delay: .4s
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="hero">
+    <div class="hero-top">
+      <div class="logo">
+        <div class="logo-icon">🚚</div>
+        <div>
+          <h1>India Logistics Optimizer</h1>
+          <p>New Delhi Warehouse · 100 cities · 3 delivery agents · Real Haversine data</p>
+        </div>
+      </div>
+      <div class="hero-actions">
+        <span class="badge badge-algo">⚡ LPT Min-Heap · O(n log k)</span>
+        <button class="theme-btn" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
+      </div>
+    </div>
+    <div class="kpi-row">
+      <div class="kpi accent1 animate-in">
+        <div class="kpi-label">Total deliveries</div>
+        <div class="kpi-value" id="kpi-del">0</div>
+        <div class="kpi-sub">24 High · 40 Medium · 36 Low</div>
+      </div>
+      <div class="kpi accent2 animate-in delay-1">
+        <div class="kpi-label">Total distance</div>
+        <div class="kpi-value" id="kpi-dist">0</div>
+        <div class="kpi-sub">km across India</div>
+      </div>
+      <div class="kpi accent3 animate-in delay-2">
+        <div class="kpi-label">Load imbalance</div>
+        <div class="kpi-value" id="kpi-imb">0%</div>
+        <div class="kpi-sub">55.3 km max gap — near-optimal</div>
+      </div>
+      <div class="kpi accent4 animate-in delay-3">
+        <div class="kpi-label">Est. fuel cost</div>
+        <div class="kpi-value" id="kpi-fuel">₹0</div>
+        <div class="kpi-sub">@ ₹8.50/km diesel rate</div>
+      </div>
+    </div>
+    <div class="kpi-row" style="margin-top:.75rem">
+      <div class="kpi animate-in delay-1">
+        <div class="kpi-label">Avg per agent</div>
+        <div class="kpi-value" style="color:#e2e8f0" id="kpi-avg">0</div>
+        <div class="kpi-sub">km · ~33 stops each</div>
+      </div>
+      <div class="kpi animate-in delay-2">
+        <div class="kpi-label">Total weight</div>
+        <div class="kpi-value" style="color:#e2e8f0" id="kpi-wt">0</div>
+        <div class="kpi-sub">kg across all packages</div>
+      </div>
+      <div class="kpi animate-in delay-3">
+        <div class="kpi-label">Travel time</div>
+        <div class="kpi-value" style="color:#e2e8f0" id="kpi-hrs">0</div>
+        <div class="kpi-sub">hours @ 45 km/h avg</div>
+      </div>
+      <div class="kpi animate-in delay-4">
+        <div class="kpi-label">Zones covered</div>
+        <div class="kpi-value" style="color:#e2e8f0">7</div>
+        <div class="kpi-sub">North · South · East · West · Central · NE · Islands</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- Interactive Map -->
+    <div class="card full-row animate-in">
+      <div class="card-title">📍 Delivery Map — 100 Cities Across India</div>
+      <div class="map-container" id="mapContainer">
+        <div id="map" style="width: 100%; height: 100%;"></div>
+      </div>
+    </div>
+
+    <!-- Agent Detail Card -->
+    <div class="card full-row animate-in">
+      <div class="card-title">📦 Agent Delivery Plans</div>
+      <div class="agent-tabs">
+        <button class="tab a1 active" onclick="showAgent(0,this)">Agent 1 (34 stops)</button>
+        <button class="tab a2" onclick="showAgent(1,this)">Agent 2 (33 stops)</button>
+        <button class="tab a3" onclick="showAgent(2,this)">Agent 3 (33 stops)</button>
+      </div>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-input" id="searchInput" placeholder="Search by city, ID, or zone..."
+          oninput="filterTable()">
+      </div>
+      <div id="agent-panel"></div>
+    </div>
+
+    <!-- Balance card -->
+    <div class="card animate-in">
+      <div class="card-title">⚖️ Load Balance</div>
+      <div id="balance-bars"></div>
+      <div
+        style="margin-top:1rem;padding:.75rem;background:var(--surface2);border-radius:8px;font-size:.75rem;color:var(--muted)">
+        <strong style="color:#00ff88">0.05%</strong> imbalance · LPT guarantees ≤ (4/3 − 1/3k) × OPT · Gap = only 55.3
+        km in 102,322 km
+      </div>
+    </div>
+
+    <!-- Priority chart -->
+    <div class="card animate-in">
+      <div class="card-title">📊 Priority Distribution</div>
+      <div class="chart-wrap"><canvas id="priChart"></canvas></div>
+    </div>
+
+    <!-- Distance chart -->
+    <div class="card animate-in">
+      <div class="card-title">📏 Distance Per Agent (km)</div>
+      <div class="chart-wrap"><canvas id="distChart"></canvas></div>
+    </div>
+
+    <!-- Weight chart -->
+    <div class="card animate-in">
+      <div class="card-title">🏋️ Weight Per Agent (kg)</div>
+      <div class="chart-wrap"><canvas id="weightChart"></canvas></div>
+    </div>
+
+    <!-- Top routes -->
+    <div class="card animate-in">
+      <div class="card-title">🏔️ Top 15 Longest Routes</div>
+      <div class="chart-wrap" style="height:320px"><canvas id="topChart"></canvas></div>
+    </div>
+
+    <!-- Zone radar -->
+    <div class="card animate-in">
+      <div class="card-title">🧭 Zone Coverage Radar</div>
+      <div class="chart-wrap"><canvas id="zoneChart"></canvas></div>
+    </div>
+
+    <!-- Agent comparison table -->
+    <div class="card full-row animate-in">
+      <div class="card-title">🏆 Agent Comparison</div>
+      <div class="scroll-wrap">
+        <table class="compare-table" id="compareTable"></table>
+      </div>
+    </div>
+
+    <!-- Algorithm info -->
+    <div class="card full-row animate-in">
+      <div class="card-title">🧠 Algorithm Deep Dive</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem">
+        <div style="padding:1rem;background:var(--surface2);border-radius:10px;border-left:3px solid #00d4ff">
+          <div style="font-weight:700;font-size:.85rem;margin-bottom:.4rem">📐 Haversine Formula</div>
+          <div style="font-size:.75rem;color:var(--muted);font-family:var(--mono)">d = 2R × arcsin(√[sin²(Δφ/2) + cos φ₁
+            cos φ₂ sin²(Δλ/2)])</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:.3rem">All 100 distances from real GPS coordinates
+          </div>
+        </div>
+        <div style="padding:1rem;background:var(--surface2);border-radius:10px;border-left:3px solid #a855f7">
+          <div style="font-weight:700;font-size:.85rem;margin-bottom:.4rem">🔀 Two-Level Sort</div>
+          <div style="font-size:.75rem;color:var(--muted)">1. Priority: High → Medium → Low</div>
+          <div style="font-size:.75rem;color:var(--muted)">2. Distance DESC (LPT heuristic)</div>
+        </div>
+        <div style="padding:1rem;background:var(--surface2);border-radius:10px;border-left:3px solid #f59e0b">
+          <div style="font-weight:700;font-size:.85rem;margin-bottom:.4rem">⚡ Min-Heap Assignment</div>
+          <div style="font-size:.75rem;color:var(--muted)">O(n log k) complexity</div>
+          <div style="font-size:.75rem;color:var(--muted)">Approx ≤ (4/3 − 1/3k) × OPT</div>
+        </div>
+        <div style="padding:1rem;background:var(--surface2);border-radius:10px;border-left:3px solid #ff4757">
+          <div style="font-weight:700;font-size:.85rem;margin-bottom:.4rem">🚫 Why Not Brute Force?</div>
+          <div style="font-size:.75rem;color:var(--muted)">3¹⁰⁰ ≈ 5.15 × 10⁴⁷ combinations</div>
+          <div style="font-size:.75rem;color:var(--muted)">LPT: 0.05% gap in &lt;4ms</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    India Logistics Delivery Optimizer v2.0 · 100 cities · Haversine distances from New Delhi ·
+    <a>Priority-Weighted Greedy Min-Heap Balancing</a> · Built with ❤️
+  </footer>
+
+  <script>
+    const S = DATA.summary, A = DATA.agents, colors = ['#00d4ff', '#a855f7', '#f59e0b'];
+    let activeAgent = 0, sortCol = '', sortDir = 1;
+
+    // ── Animated counters ──
+    function animateValue(el, end, prefix = '', suffix = '', duration = 1200) {
+      const start = 0, range = end - start, startTime = performance.now();
+      const fmt = v => v >= 1000 ? v.toLocaleString('en-IN') : v.toString();
+      function step(now) {
+        const progress = Math.min((now - startTime) / duration, 1);
+        const ease = 1 - Math.pow(1 - progress, 3);
+        const current = Math.round(start + range * ease);
+        el.textContent = prefix + fmt(current) + suffix;
+        if (progress < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+    animateValue(document.getElementById('kpi-del'), 100);
+    animateValue(document.getElementById('kpi-dist'), 102322, '', '');
+    animateValue(document.getElementById('kpi-imb'), 5, '0.', '%');
+    animateValue(document.getElementById('kpi-fuel'), 869733, '₹');
+    animateValue(document.getElementById('kpi-avg'), 34107);
+    animateValue(document.getElementById('kpi-wt'), 1166);
+    animateValue(document.getElementById('kpi-hrs'), 2274);
+    setTimeout(() => {
+      document.getElementById('kpi-dist').textContent = '102,322';
+      document.getElementById('kpi-imb').textContent = '0.05%';
+      document.getElementById('kpi-fuel').textContent = '₹8,69,733';
+      document.getElementById('kpi-avg').textContent = '34,107';
+      document.getElementById('kpi-wt').textContent = '1,166';
+      document.getElementById('kpi-hrs').textContent = '2,274';
+    }, 1400);
+
+    // ── Theme toggle ──
+    function toggleTheme() {
+      const d = document.documentElement, t = d.getAttribute('data-theme') === 'light' ? '' : 'light';
+      d.setAttribute('data-theme', t);
+      document.getElementById('themeToggle').textContent = t === 'light' ? '☀️' : '🌙';
+      if (typeof renderMap === 'function') setTimeout(renderMap, 50);
+    }
+
+    // ── Priority badge ──
+    function priBadge(p) {
+      const m = { High: 'pri-H', Medium: 'pri-M', Low: 'pri-L' };
+      return `<span class="pri-badge ${m[p]}">${p}</span>`;
+    }
+
+    // ── Agent panel ──
+    function showAgent(n, btn) {
+      activeAgent = n;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      const a = A[n], c = a.color;
+      renderAgentTable(a, c);
+    }
+    function renderAgentTable(a, c, filter = '') {
+      const dels = filter ? a.deliveries.filter(d => {
+        const q = filter.toLowerCase();
+        return d.city.toLowerCase().includes(q) || d.id.toLowerCase().includes(q) || (d.zone || '').toLowerCase().includes(q);
+      }) : a.deliveries;
+      const rows = dels.map((d, i) => `<tr>
+    <td style="color:var(--muted);font-family:var(--mono)">${i + 1}</td>
+    <td style="font-family:var(--mono);font-size:.72rem;color:${c}">${d.id}</td>
+    <td style="font-weight:500">${d.city}</td>
+    <td>${priBadge(d.pri)}</td>
+    <td style="font-family:var(--mono);text-align:right">${d.dist.toFixed(1)}</td>
+    <td style="font-family:var(--mono);text-align:right;color:var(--muted)">${d.wt} kg</td>
+    <td style="font-size:.7rem;color:var(--muted)">${d.dl}</td>
+    <td><span class="zone-chip" style="font-size:.65rem;padding:.15rem .4rem">${d.zone}</span></td>
+  </tr>`).join('');
+      document.getElementById('agent-panel').innerHTML = `
+    <div class="agent-stat">
+      <div class="astat"><div class="astat-val" style="color:${c}">${a.stops}</div><div class="astat-lbl">Stops</div></div>
+      <div class="astat"><div class="astat-val" style="color:${c}">${a.distance.toLocaleString()}</div><div class="astat-lbl">km total</div></div>
+      <div class="astat"><div class="astat-val" style="color:${c}">${a.share}%</div><div class="astat-lbl">Load share</div></div>
+      <div class="astat"><div class="astat-val" style="color:#ff4757">${a.pri.High}</div><div class="astat-lbl">High</div></div>
+      <div class="astat"><div class="astat-val" style="color:#ffd700">${a.pri.Medium}</div><div class="astat-lbl">Medium</div></div>
+      <div class="astat"><div class="astat-val" style="color:#00ff88">${a.pri.Low}</div><div class="astat-lbl">Low</div></div>
+      <div class="astat"><div class="astat-val" style="color:${c}">${a.weight} kg</div><div class="astat-lbl">Weight</div></div>
+      <div class="astat"><div class="astat-val" style="color:${c}">₹${(a.fuel / 1000).toFixed(0)}k</div><div class="astat-lbl">Fuel</div></div>
+    </div>
+    ${a.deliveries.length > 10 ? `<div style="font-size:.72rem;color:var(--muted);margin-bottom:.5rem">Showing ${dels.length} of ${a.deliveries.length} deliveries</div>` : ''}
+    <div class="scroll-wrap"><table class="delivery-table"><thead><tr>
+      <th>#</th><th>ID</th><th>City</th><th>Priority</th><th style="text-align:right">Dist (km)</th><th style="text-align:right">Weight</th><th>Deadline</th><th>Zone</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+    function filterTable() {
+      const q = document.getElementById('searchInput').value;
+      renderAgentTable(A[activeAgent], A[activeAgent].color, q);
+    }
+
+    // ── Balance bars ──
+    function renderBalance() {
+      const max = Math.max(...A.map(a => a.distance));
+      document.getElementById('balance-bars').innerHTML = A.map((a, i) => `
+    <div class="balance-row">
+      <div class="balance-label" style="color:${colors[i]}">${a.id}</div>
+      <div class="balance-track">
+        <div class="balance-fill" style="width:${a.distance / max * 100}%;background:${colors[i]}22;color:${colors[i]}">${a.distance.toLocaleString()} km</div>
+      </div>
+      <div class="balance-pct">${a.share}%</div>
+    </div>`).join('');
+    }
+
+    // ── Map ──
+    let mapInstance = null;
+    function renderMap() {
+      if (mapInstance) {
+        mapInstance.remove();
+      }
+      mapInstance = L.map('map').setView([22.5937, 78.9629], 4);
+      
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      const tileUrl = isLight 
+        ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+      
+      L.tileLayer(tileUrl, {
+        attribution: '&copy; OpenStreetMap &copy; CARTO',
+        subdomains: 'abcd',
+        maxZoom: 20
+      }).addTo(mapInstance);
+
+      // Draw warehouse
+      const warehouseIcon = L.divIcon({
+        className: '',
+        html: `<div style="font-size: 14px; background: #ff4757; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; box-shadow: 0 0 10px rgba(255,71,87,0.8);">⭐</div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+      L.marker([28.61, 77.21], { icon: warehouseIcon }).addTo(mapInstance)
+        .bindPopup('<div style="font-family:inherit;"><strong>New Delhi Warehouse</strong><br>Origin Point</div>');
+
+      // Draw delivery dots
+      A.forEach((agent, ai) => {
+        agent.deliveries.forEach(d => {
+          if (!d.lat || !d.lon) return;
+          const color = colors[ai];
+          const markerHtml = `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 8px ${color}; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.4)'" onmouseout="this.style.transform='scale(1)'"></div>`;
+          const icon = L.divIcon({
+            className: '',
+            html: markerHtml,
+            iconSize: [12, 12],
+            iconAnchor: [6, 6]
+          });
+          
+          L.marker([d.lat, d.lon], { icon: icon }).addTo(mapInstance)
+            .bindPopup(`<div style="font-family:inherit;font-size:0.8rem;text-align:center;"><strong>${d.city}</strong><br><span style="color:${color};font-weight:bold;">${agent.id}</span><br>${d.dist.toFixed(1)} km<br><div style="margin-top:6px;margin-bottom:4px;">${priBadge(d.pri)}</div><div><span class="zone-chip" style="font-size:0.65rem;padding:0.15rem 0.4rem;display:inline-block;">${d.zone || ''}</span></div></div>`);
+        });
+      });
+      
+      // Auto-fit bounds
+      const bounds = L.latLngBounds(A.flatMap(a => a.deliveries.map(d => [d.lat, d.lon])));
+      bounds.extend([28.61, 77.21]); // Add Delhi
+      mapInstance.fitBounds(bounds, { padding: [30, 30] });
+    }
+
+    // ── Comparison table ──
+    function renderCompare() {
+      const metrics = [
+        { label: 'Total Stops', key: 'stops' },
+        { label: 'Distance (km)', key: 'distance', fmt: v => v.toLocaleString() },
+        { label: 'Load Share', key: 'share', fmt: v => v + '%' },
+        { label: 'Weight (kg)', key: 'weight' },
+        { label: 'Fuel Cost (₹)', key: 'fuel', fmt: v => '₹' + v.toLocaleString() },
+        { label: 'Travel Hours', key: 'hours' },
+        { label: 'High Priority', key: null, fn: a => a.pri.High },
+        { label: 'Medium Priority', key: null, fn: a => a.pri.Medium },
+        { label: 'Low Priority', key: null, fn: a => a.pri.Low },
+      ];
+      let html = '<thead><tr><th>Metric</th>';
+      A.forEach((a, i) => html += `<th style="color:${colors[i]}">${a.id}</th>`);
+      html += '</tr></thead><tbody>';
+      metrics.forEach(m => {
+        html += '<tr><td style="text-align:left;font-weight:600">' + m.label + '</td>';
+        const vals = A.map(a => m.key ? a[m.key] : (m.fn ? m.fn(a) : 0));
+        vals.forEach((v, i) => {
+          const formatted = m.fmt ? m.fmt(v) : v;
+          html += `<td class="rank-${i + 1}" style="font-family:var(--mono)">${formatted}</td>`;
+        });
+        html += '</tr>';
+      });
+      html += '</tbody>';
+      document.getElementById('compareTable').innerHTML = html;
+    }
+
+    // ── Charts ──
+    function chartOpts(extra = {}) { return { responsive: true, maintainAspectRatio: false, ...extra } }
+    function gridCfg() { return { color: getComputedStyle(document.documentElement).getPropertyValue('--border') || '#1e2d45' } }
+    function tickCfg() { return { color: '#64748b' } }
+
+    function renderCharts() {
+      const g = gridCfg(), tk = tickCfg();
+
+      // Priority stacked
+      new Chart(document.getElementById('priChart'), {
+        type: 'bar',
+        data: {
+          labels: A.map(a => a.id), datasets: [
+            { label: 'High', data: A.map(a => a.pri.High), backgroundColor: '#ff475788', borderColor: '#ff4757', borderWidth: 1 },
+            { label: 'Medium', data: A.map(a => a.pri.Medium), backgroundColor: '#ffd70088', borderColor: '#ffd700', borderWidth: 1 },
+            { label: 'Low', data: A.map(a => a.pri.Low), backgroundColor: '#00ff8888', borderColor: '#00ff88', borderWidth: 1 }
+          ]
+        },
+        options: {
+          ...chartOpts(), plugins: { legend: { labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } } },
+          scales: { x: { stacked: true, ticks: tk, grid: g }, y: { stacked: true, ticks: tk, grid: g } }
+        }
+      });
+
+      // Distance bar
+      new Chart(document.getElementById('distChart'), {
+        type: 'bar',
+        data: {
+          labels: A.map(a => a.id), datasets: [{
+            label: 'Distance (km)', data: A.map(a => a.distance),
+            backgroundColor: colors.map(c => c + '44'), borderColor: colors, borderWidth: 1.5, borderRadius: 6
+          }]
+        },
+        options: {
+          ...chartOpts(), plugins: { legend: { display: false } },
+          scales: { x: { ticks: tk, grid: g }, y: { ticks: { ...tk, callback: v => v.toLocaleString() }, grid: g, min: 33800, max: 34400 } }
+        }
+      });
+
+      // Weight bar
+      new Chart(document.getElementById('weightChart'), {
+        type: 'bar',
+        data: {
+          labels: A.map(a => a.id), datasets: [{
+            label: 'Weight (kg)', data: A.map(a => a.weight),
+            backgroundColor: colors.map(c => c + '44'), borderColor: colors, borderWidth: 1.5, borderRadius: 6
+          }]
+        },
+        options: { ...chartOpts(), plugins: { legend: { display: false } }, scales: { x: { ticks: tk, grid: g }, y: { ticks: tk, grid: g } } }
+      });
+
+      // Top 15 longest routes
+      const all = A.flatMap((a, i) => a.deliveries.map(d => ({ ...d, agent: i, agentColor: colors[i] })));
+      const top15 = all.sort((a, b) => b.dist - a.dist).slice(0, 15);
+      new Chart(document.getElementById('topChart'), {
+        type: 'bar',
+        data: {
+          labels: top15.map(d => d.city.substring(0, 14)), datasets: [{
+            label: 'Distance (km)', data: top15.map(d => d.dist),
+            backgroundColor: top15.map(d => d.agentColor + '66'), borderColor: top15.map(d => d.agentColor), borderWidth: 1.5, borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: 'y', ...chartOpts(), plugins: { legend: { display: false } },
+          scales: { x: { ticks: { ...tk, callback: v => v + 'km' }, grid: g }, y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: g } }
+        }
+      });
+
+      // Zone radar
+      const zoneLabels = Object.keys(S.zones);
+      new Chart(document.getElementById('zoneChart'), {
+        type: 'radar',
+        data: {
+          labels: zoneLabels, datasets: A.map((a, i) => ({
+            label: a.id, data: zoneLabels.map(z => a.zones[z] || 0),
+            backgroundColor: colors[i] + '22', borderColor: colors[i], borderWidth: 2, pointBackgroundColor: colors[i], pointRadius: 3
+          }))
+        },
+        options: {
+          ...chartOpts(), plugins: { legend: { labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } } },
+          scales: { r: { ticks: { color: '#64748b', backdropColor: 'transparent' }, grid: { color: '#1e2d4555' }, pointLabels: { color: '#94a3b8', font: { size: 11 } } } }
+        }
+      });
+    }
+
+    // ── Init ──
+    showAgent(0, document.querySelector('.tab.a1'));
+    renderBalance();
+    renderMap();
+    renderCompare();
+    renderCharts();
+  </script>
+</body>
+
+</html>
