@@ -1,84 +1,205 @@
-# India Logistics Delivery Optimizer
+<![CDATA[<div align="center">
 
-A delivery route optimization engine that assigns **100 real Indian city** deliveries across **3 agents** using a **Priority-Weighted LPT Min-Heap** algorithm — achieving **0.05% load imbalance** over 102,322 km.
+# 🚚 India Logistics Delivery Optimizer
 
-## Architecture
+**Intelligent route optimization for last-mile delivery across India**
+
+![Python](https://img.shields.io/badge/Python-3.8+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Algorithm](https://img.shields.io/badge/Algorithm-LPT_Min--Heap-FF6F00?style=for-the-badge)
+![Cities](https://img.shields.io/badge/Cities-100-00C853?style=for-the-badge)
+![Imbalance](https://img.shields.io/badge/Load_Imbalance-0.05%25-7C4DFF?style=for-the-badge)
+![Dashboard](https://img.shields.io/badge/Dashboard-Leaflet_+_Chart.js-0078D4?style=for-the-badge)
+
+*Assigns 100 real Indian city deliveries across 3 agents with near-perfect load balance — 55.3 km gap over 102,322 km total distance.*
+
+---
+
+</div>
+
+## 🏗️ System Architecture
 
 ```
-india_deliveries.csv  ──►  delivery_optimizer.py  ──►  delivery_plan.csv
-        (100 cities)         │  Sort (Priority + LPT)     delivery_plan.json
-                             │  Assign (Min-Heap)          dashboard_data.js
-                             ▼
-                        dashboard.html  ◄──  Leaflet Map · Chart.js · Dark/Light Mode
+                          ┌─────────────────────────────────────┐
+                          │       delivery_optimizer.py          │
+                          │                                     │
+  india_deliveries.csv ──►│  1. Parse & Validate CSV            │──► delivery_plan.csv
+     (100 cities)         │  2. Two-Level Sort (Priority + LPT) │──► delivery_plan.json
+                          │  3. Min-Heap Agent Assignment       │──► dashboard_data.js
+                          │  4. Analytics & Zone Classification  │
+                          └──────────────┬──────────────────────┘
+                                         │
+                                         ▼
+                          ┌─────────────────────────────────────┐
+                          │         dashboard.html               │
+                          │                                     │
+                          │  ● Leaflet.js Interactive Map       │
+                          │  ● Chart.js Visualizations (×5)     │
+                          │  ● Agent Drill-down Tables          │
+                          │  ● Dark / Light Theme Toggle        │
+                          └─────────────────────────────────────┘
 ```
 
-## Quick Start
+---
+
+## ⚡ Quick Start
 
 ```bash
-# Run optimizer (default: 3 agents, india_deliveries.csv)
+# 1. Run the optimizer
 python delivery_optimizer.py
 
-# Custom configuration
-python delivery_optimizer.py --input data.csv --agents 5 --out-csv plan.csv --out-json plan.json
-
-# Launch dashboard (avoids CORS issues with local files)
+# 2. Launch the dashboard
 python -m http.server 8000
-# Open http://localhost:8000/dashboard.html
+# → Open http://localhost:8000/dashboard.html
 
-# Run tests
+# 3. Run tests
 python -m unittest test_delivery_optimizer.py
 ```
 
-## Algorithm
+### CLI Options
 
-**Problem:** Assign *n* deliveries to *k* agents minimizing max-agent distance (NP-hard multiprocessor scheduling).
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--input`, `-i` | `india_deliveries.csv` | Input dataset path |
+| `--out-csv`, `-c` | `delivery_plan.csv` | Output CSV path |
+| `--out-json`, `-j` | `delivery_plan.json` | Output JSON path |
+| `--agents`, `-a` | `3` | Number of delivery agents |
 
-**Approach:** Two-phase greedy heuristic in `O(n log k)`:
+```bash
+# Example: 5 agents with custom paths
+python delivery_optimizer.py --agents 5 --input my_data.csv --out-csv my_plan.csv
+```
 
-1. **Sort** — Priority rank (High → Med → Low), then distance descending (LPT heuristic)
-2. **Assign** — Min-heap always routes next delivery to the least-loaded agent
+---
 
-**Guarantee:** ≤ `(4/3 − 1/3k) × OPT`
+## 🧠 Algorithm
 
-| Agent | Stops | Distance | Share |
-|-------|-------|----------|-------|
-| Agent 1 | 34 | 34,126.5 km | 33.4% |
-| Agent 2 | 33 | 34,071.2 km | 33.3% |
-| Agent 3 | 33 | 34,123.8 km | 33.3% |
+> **Problem:** Assign *n* weighted deliveries to *k* agents minimizing the maximum agent workload — a variant of the NP-hard multiprocessor scheduling problem.
 
-Max gap: **55.3 km** out of 102,322 km — brute force (`3¹⁰⁰ ≈ 5×10⁴⁷`) is infeasible; this runs in **<4 ms**.
+### Two-Phase Greedy Heuristic — `O(n log k)`
 
-## Dataset
+```
+Phase 1: SORT
+┌─────────────────────────────────────────────────────┐
+│  Primary Key   →  Priority Rank (High=1, Med=2, Low=3)  │
+│  Secondary Key →  Distance DESCENDING (LPT heuristic)   │
+└─────────────────────────────────────────────────────┘
 
-100 cities across 7 zones (North, South, East, West, Central, Northeast, Islands) with real GPS coordinates. All distances computed via **Haversine formula** from the New Delhi warehouse (28.61°N, 77.21°E).
+Phase 2: ASSIGN (Min-Heap)
+┌─────────────────────────────────────────────────────┐
+│  heap = [(0, Agent_1), (0, Agent_2), (0, Agent_3)]  │
+│  for each delivery in sorted order:                  │
+│      pop least-loaded agent                          │
+│      assign delivery → update total → push back      │
+└─────────────────────────────────────────────────────┘
+```
 
-## Dashboard
+### Why LPT + Min-Heap?
 
-Interactive single-page analytics dashboard featuring:
+| Approach | Time | Accuracy |
+|----------|------|----------|
+| **Brute Force** | `3¹⁰⁰ ≈ 5×10⁴⁷` combinations | Optimal but infeasible |
+| **LPT Min-Heap** | **< 4 ms** | ≤ `(4/3 − 1/3k) × OPT` |
 
-- **Leaflet.js map** with 100 city markers, agent-colored dots, and click popups
-- **8 KPI cards** with animated counters
-- **5 Chart.js visualizations** — priority bars, distance/weight comparison, top routes, zone radar
-- **Agent drill-down** — tabbed delivery tables with search/filter
-- **Dark/Light mode** toggle with theme-aware map tiles
+### Results
 
-## Project Structure
+| Agent | Stops | Distance (km) | Load Share |
+|-------|-------|---------------|------------|
+| Agent 1 | 34 | 34,126.5 | 33.4% |
+| Agent 2 | 33 | 34,071.2 | 33.3% |
+| Agent 3 | 33 | 34,123.8 | 33.3% |
+| **Total** | **100** | **102,321.5** | — |
 
-| File | Purpose |
-|------|---------|
-| `delivery_optimizer.py` | Core optimizer — CSV parsing, sorting, heap assignment, analytics |
-| `india_deliveries.csv` | Input dataset — 100 cities with coordinates, priority, weight |
-| `dashboard.html` | Interactive dashboard with Leaflet map and Chart.js |
-| `dashboard_data.js` | Pre-computed data module consumed by the dashboard |
-| `test_delivery_optimizer.py` | Unit test suite for sorting, assignment, zone classification |
-| `delivery_plan.csv` | Generated output — agent assignments with zones |
-| `delivery_plan.json` | Generated output — full analytics payload |
+```
+Agent 1  ████████████████████████████████████████  34,126.5 km
+Agent 2  ████████████████████████████████████████  34,071.2 km
+Agent 3  ████████████████████████████████████████  34,123.8 km
+         ─────────────────────────────────────────
+         Max gap: 55.3 km (0.05% imbalance)
+```
 
-## Requirements
+---
 
-- Python 3.8+ (standard library only)
-- Modern browser for the dashboard
+## 🗺️ Dataset — 100 Indian Cities
 
-## License
+All distances computed using the **Haversine formula** from the **New Delhi warehouse** (28.61°N, 77.21°E).
+
+| Zone | Cities | Examples |
+|------|--------|----------|
+| North | 18 | Delhi, Jaipur, Chandigarh, Shimla, Srinagar |
+| South | 21 | Chennai, Bangalore, Kochi, Madurai |
+| East | 19 | Kolkata, Guwahati, Bhubaneswar, Ranchi |
+| West | 11 | Mumbai, Ahmedabad, Pune, Surat |
+| Central | 19 | Nagpur, Bhopal, Indore, Lucknow |
+| Northeast | 4 | Shillong, Imphal, Aizawl, Silchar |
+| Islands | 1 | Port Blair (Andaman) |
+
+**CSV Schema:** `Location_ID` · `City` · `Latitude` · `Longitude` · `Distance_km` · `Priority` · `Package_Weight_kg` · `Delivery_Deadline`
+
+---
+
+## 📊 Dashboard Features
+
+| Feature | Technology | Description |
+|---------|------------|-------------|
+| **Interactive Map** | Leaflet.js + CartoDB tiles | 100 city markers with click popups, agent-colored dots, auto-fit bounds |
+| **KPI Cards** | Vanilla JS | 8 animated counters — deliveries, distance, imbalance, fuel, weight, hours |
+| **Priority Chart** | Chart.js | Stacked bar comparing High/Medium/Low across agents |
+| **Distance & Weight** | Chart.js | Per-agent comparison bars |
+| **Top 15 Routes** | Chart.js | Horizontal bar of longest delivery routes |
+| **Zone Radar** | Chart.js | Radar chart of geographic zone coverage per agent |
+| **Agent Tables** | Vanilla JS | Tabbed delivery tables with live search/filter |
+| **Theme Toggle** | CSS Variables | Dark ↔ Light mode with theme-aware map tiles |
+
+---
+
+## 📈 Key Metrics
+
+| Metric | Value |
+|--------|-------|
+| Total Distance | 102,321.5 km |
+| Load Imbalance | 0.05% (55.3 km) |
+| Total Weight | 1,165.9 kg |
+| Est. Fuel Cost | ₹8,69,733 @ ₹8.50/km |
+| Est. Travel Time | 2,273.8 hours @ 45 km/h |
+| Optimization Runtime | < 4 ms |
+
+---
+
+## 📁 Project Structure
+
+```
+task CIT/
+├── delivery_optimizer.py       # Core engine — parse, sort, assign, output
+├── india_deliveries.csv        # 100-city input dataset
+├── dashboard.html              # Interactive analytics dashboard
+├── dashboard_data.js           # Pre-computed data for dashboard
+├── test_delivery_optimizer.py  # Unit tests (sorting, assignment, zones)
+├── delivery_plan.csv           # Generated — agent assignments
+├── delivery_plan.json          # Generated — full analytics payload
+└── README.md
+```
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Backend** | Python 3.8+ (standard library only — zero dependencies) |
+| **Mapping** | Leaflet.js 1.9.4 + CartoDB Dark/Light tiles |
+| **Charts** | Chart.js 4.4.1 |
+| **Styling** | CSS Variables, Space Grotesk + JetBrains Mono fonts |
+| **Testing** | Python `unittest` |
+
+---
+
+## 📝 License
 
 MIT
+
+---
+
+<div align="center">
+  <sub>Built for the CIT Logistics Optimization Task</sub>
+</div>
+]]>
